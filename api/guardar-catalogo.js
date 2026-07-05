@@ -17,27 +17,13 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
 
   try {
-    const { adminId, tipo, datos, idRef } = req.body;
-    if (!adminId || !tipo || !datos) {
-      return res.status(400).json({ error: 'Faltan parámetros' });
-    }
+    const { adminId, catalogo } = req.body;
+    if (!adminId || !catalogo) return res.status(400).json({ error: 'Faltan parámetros' });
 
-    const db = admin.database();
-
-    if (tipo === 'metadata') {
-      // Guarda únicamente el listado ligero de productos (sin base64) y datos de negocio
-      await db.ref(`catalogos/${adminId}/metadata`).set(datos);
-    } else if (tipo === 'imagen' && idRef) {
-      // Guarda o actualiza la foto original de un producto específico
-      await db.ref(`catalogos/${adminId}/imagenes/${idRef}`).set(datos);
-    } else if (tipo === 'imagen_variante' && idRef) {
-      // Guarda la foto de una variante específica
-      await db.ref(`catalogos/${adminId}/imagenes_variantes/${idRef}`).set(datos);
-    }
-
+    // Guardamos el catálogo completo optimizado de un solo golpe
+    await admin.database().ref(`catalogos/${adminId}`).set(catalogo);
     return res.status(200).json({ success: true });
   } catch (e) {
-    console.error(e);
     return res.status(500).json({ error: e.message });
   }
 };
