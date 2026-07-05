@@ -17,24 +17,25 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
 
   try {
-    const { adminId, chunkIndex, totalChunks, chunkData } = req.body;
-    
-    // Validación de seguridad para asegurar que lleguen los fragmentos
-    if (adminId === undefined || chunkIndex === undefined || totalChunks === undefined || chunkData === undefined) {
-      return res.status(400).json({ error: 'Faltan parámetros de fragmentación' });
+    const { adminId, tipo, datos, idRef } = req.body;
+    if (!adminId || !tipo || !datos) {
+      return res.status(400).json({ error: 'Faltan parámetros' });
     }
 
     const db = admin.database();
-    
-    // Si es el primer fragmento, limpiamos la base de datos para recibir el nuevo catálogo limpio
-    if (chunkIndex === 0) {
-      await db.ref(`catalogos/${adminId}/chunks`).remove();
+
+    if (tipo === 'metadata') {
+      // Guarda únicamente el listado ligero de productos (sin base64) y datos de negocio
+      await db.ref(`catalogos/${adminId}/metadata`).set(datos);
+    } else if (tipo === 'imagen' && idRef) {
+      // Guarda o actualiza la foto original de un producto específico
+      await db.ref(`catalogos/${adminId}/imagenes/${idRef}`).set(datos);
+    } else if (tipo === 'imagen_variante' && idRef) {
+      // Guarda la foto de una variante específica
+      await db.ref(`catalogos/${adminId}/imagenes_variantes/${idRef}`).set(datos);
     }
 
-    // Guardamos el fragmento en la base de datos en tiempo real
-    await db.ref(`catalogos/${adminId}/chunks/${chunkIndex}`).set(chunkData);
-
-    return res.status(200).json({ success: true, partSaved: chunkIndex });
+    return res.status(200).json({ success: true });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: e.message });
