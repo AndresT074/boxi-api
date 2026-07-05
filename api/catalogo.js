@@ -20,15 +20,23 @@ module.exports = async (req, res) => {
     if (!adminId) return res.status(400).json({ error: 'Falta el adminId' });
 
     const db = admin.database();
-    const snap = await db.ref(`catalogos/${adminId}`).once('value');
+    const snap = await db.ref(`catalogos/${adminId}/chunks`).once('value');
 
     if (!snap.exists()) {
-      return res.status(404).json({ error: 'Catálogo no encontrado' });
+      return res.status(404).json({ error: 'Catálogo no encontrado o incompleto' });
     }
 
-    const catalogo = snap.val();
+    const chunks = snap.val();
+    
+    // Reconstruimos la cadena JSON completa ordenando las partes
+    const fullJson = Object.keys(chunks)
+      .sort((a, b) => parseInt(a) - parseInt(b))
+      .map(key => chunks[key])
+      .join('');
 
-    // Cacheamos el catálogo pesado en el CDN de Vercel por 5 minutos
+    const catalogo = JSON.parse(fullJson);
+
+    // Cache de 5 minutos en el CDN de Vercel
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=86400');
 
     return res.status(200).json(catalogo);
